@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Geletterdheid Beslisboom</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; padding: 20px; max-width: 650px; margin: auto; background: #f4f7f6; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h1 { color: #2c3e50; font-size: 1.5rem; margin-bottom: 10px; }
+        h2 { color: #34495e; font-size: 1.2rem; margin-top: 0; }
+        .intro { color: #555; font-size: 0.95rem; }
+        .question { margin-bottom: 20px; font-weight: bold; color: #34495e; font-size: 1.05rem; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; transition: 0.3s; }
+        .btn-ja { background: #27ae60; color: white; flex: 1; }
+        .btn-nee { background: #e74c3c; color: white; flex: 1; }
+        .btn-terug { background: #95a5a6; color: white; width: 100%; margin-top: 10px; }
+        .btn-reset { background: #34495e; color: white; width: 100%; margin-top: 20px; }
+        button:hover { opacity: 0.8; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .result { padding: 20px; border-radius: 8px; text-align: center; }
+        .level-1 { background: #d5dbdb; color: #2c3e50; }
+        .level-2 { background: #aed6f1; color: #1b4f72; }
+        .level-3 { background: #f9e79f; color: #7d6608; }
+        .level-4 { background: #a9dfbf; color: #145a32; }
+        .hidden { display: none; }
+        .custom-output { margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.3); border-radius: 6px; font-style: italic; }
+        .custom-output a { color: inherit; text-decoration: underline; font-weight: bold; }
+        .level-info { margin-top: 20px; padding: 15px; background: #ecf0f1; border-radius: 6px; text-align: left; font-size: 0.9rem; }
+        .level-info h3 { margin-top: 0; color: #2c3e50; font-size: 1rem; }
+        .level-info ul { margin: 5px 0; padding-left: 20px; }
+        .ja-answers { margin-top: 15px; padding: 15px; background: #e8f8f5; border-left: 4px solid #27ae60; border-radius: 4px; text-align: left; }
+        .ja-answers h3 { margin-top: 0; color: #145a32; font-size: 0.95rem; }
+        .ja-answers ul { margin: 5px 0; padding-left: 20px; font-size: 0.85rem; }
+        .progress { font-size: 0.8rem; color: #7f8c8d; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="card" id="intro-screen">
+    <h1>🧠 AI-Geletterdheid Checker</h1>
+    <p class="intro">
+        Deze tool helpt je om je AI-geletterdheidsniveau te bepalen op basis van de kerncompetenties van data en AI. 
+        Beantwoord 11 korte vragen over je dagelijkse werkzaamheden.
+    </p>
+    <p class="intro" style="font-size: 0.85rem; color: #7f8c8d;">
+        <strong>Bron:</strong> Documentatie vanuit Rijksacademie voor Digitalisering en Informatisering Overheid
+    </p>
+    <p class="intro">
+        <strong>Let op:</strong> Het gaat niet om wat je <em>zou kunnen</em>, maar om wat je <em>functie van je vraagt</em>.
+    </p>
+    <button class="btn-ja" onclick="startQuiz()" style="width: 100%; margin-top: 15px;">Start de test</button>
+</div>
+
+<div class="card hidden" id="app">
+    <h1>AI-Geletterdheid Checker</h1>
+    <div id="quiz">
+        <p class="progress" id="progress"></p>
+        <p class="question" id="question-text"></p>
+        <div class="btn-group">
+            <button class="btn-ja" onclick="handleAnswer(true)">Ja</button>
+            <button class="btn-nee" onclick="handleAnswer(false)">Nee</button>
+        </div>
+        <button class="btn-terug" id="btn-terug" onclick="goBack()" disabled>← Vorige vraag</button>
+    </div>
+    
+    <div id="result-area" class="hidden">
+        <div id="result-box" class="result">
+            <h2 id="level-name"></h2>
+            <p id="level-desc"></p>
+            <div class="custom-output" id="custom-message"></div>
+        </div>
+        
+        <div class="level-info">
+            <h3>📚 Uitleg over alle niveaus:</h3>
+            <ul>
+                <li><strong>Niveau 1 - AI-bewust:</strong> Basiskennis, AI gebruiken voor persoonlijke productiviteit</li>
+                <li><strong>Niveau 2 - AI-bekwaam:</strong> Kritische gebruiker die output valideert in de praktijk</li>
+                <li><strong>Niveau 3 - AI-geavanceerd:</strong> Strategisch adviseur en brug tussen techniek en beleid</li>
+                <li><strong>Niveau 4 - AI-expert:</strong> Technische maker die systemen bouwt en beheert</li>
+            </ul>
+        </div>
+        
+        <div class="ja-answers" id="ja-answers-box">
+            <h3>✅ Vragen waarop je "Ja" hebt geantwoord:</h3>
+            <ul id="ja-list"></ul>
+        </div>
+        
+        <button class="btn-reset" onclick="resetQuiz()">🔄 Opnieuw beginnen</button>
+    </div>
+</div>
+
+<script>
+    const questions = [
+        { id: 1, text: "Wordt er van jou verwacht dat je AI-output of data-analyses van (jouzelf en/of anderen) inhoudelijk toetst op betrouwbaarheid en correctheid, verdergaand dan alleen teksthulp of brainstormen?", block: 1 },
+        { id: 2, text: "Is het onderdeel van jouw taken om kansen voor AI-inzet te signaleren en hiervoor inhoudelijke opdrachten te formuleren voor specialisten?", block: 1 },
+        { id: 3, text: "Moet je voor je werk zelfstandig informatie uit verschillende bronnen verzamelen en deze met software (zoals Excel/Power BI) analyseren of vergelijken?", block: 1 },
+        { id: 4, text: "Verlangt de organisatie van jou dat je formeel risico-instrumenten (zoals privacytoetsen of impactanalyses) toepast op digitale systemen?", block: 1 },
+        { id: 5, text: "Is jouw hoofdfunctie het technisch ontwerpen, implementeren en/of het beheren van data- en AI-systemen of taalmodellen?", block: 2 },
+        { id: 6, text: "Behoort het schrijven en/of aanpassen van computercode (bijv. in Python, R of SQL) tot je dagelijkse werkzaamheden om oplossingen te bouwen?", block: 2 },
+        { id: 7, text: "Moet jij op IT-technisch niveau kunnen onderzoeken of algoritmes statistische fouten of ongewenste vooroordelen bevatten?", block: 2 },
+        { id: 8, text: "Vervul je een structurele brugfunctie waarbij je de behoeften van collega's vertaalt naar technische makers en hen helpt systemen te begrijpen?", block: 3 },
+        { id: 9, text: "Wordt er van jou verwacht dat je op strategisch niveau adviseert over de veilige en verantwoorde omgang met data en AI?", block: 3 },
+        { id: 10, text: "Ben je verantwoordelijk voor het BEPALEN VAN DE REGELS voor de kwaliteit, het opslaan en het delen van informatie?", block: 3 },
+        { id: 11, text: "Moet jij complexe analyses begrijpelijk maken voor het management en adviseren over de volledige levenscyclus van AI-oplossingen?", block: 3 }
+    ];
+
+    let currentStep = 0;
+    let answerHistory = [];
+    let jaAnswers = [];
+
+    function startQuiz() {
+        document.getElementById('intro-screen').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+        updateView();
+    }
+
+    function updateView() {
+        const q = questions[currentStep];
+        document.getElementById('progress').innerText = `Vraag ${currentStep + 1} van ${questions.length}`;
+        document.getElementById('question-text').innerText = q.text;
+        document.getElementById('btn-terug').disabled = (currentStep === 0);
+    }
+
+    function handleAnswer(isJa) {
+        const q = questions[currentStep];
+        answerHistory.push({ step: currentStep, answer: isJa });
+        
+        if (isJa) {
+            jaAnswers.push(q.text);
+        }
+
+        if (q.block === 1) {
+            if (isJa) {
+                currentStep = 4; 
+            } else if (currentStep === 3) {
+                showResult(1);
+                return;
+            } else {
+                currentStep++;
+            }
+        } 
+        else if (q.block === 2) {
+            if (isJa) {
+                showResult(4);
+                return;
+            } else if (currentStep === 6) {
+                currentStep++;
+            } else {
+                currentStep++;
+            }
+        }
+        else if (q.block === 3) {
+            if (isJa) {
+                showResult(3);
+                return;
+            } else if (currentStep === 10) {
+                showResult(2);
+                return;
+            } else {
+                currentStep++;
+            }
+        }
+        
+        updateView();
+    }
+
+    function goBack() {
+        if (answerHistory.length === 0) return;
+        
+        const lastAnswer = answerHistory.pop();
+        
+        if (lastAnswer.answer) {
+            jaAnswers.pop();
+        }
+        
+        currentStep = lastAnswer.step;
+        updateView();
+    }
+
+    function showResult(level) {
+        document.getElementById('quiz').classList.add('hidden');
+        document.getElementById('result-area').classList.remove('hidden');
+        const box = document.getElementById('result-box');
+        const name = document.getElementById('level-name');
+        const desc = document.getElementById('level-desc');
+        const custom = document.getElementById('custom-message');
+
+        box.className = 'result level-' + level;
+        
+        if (level === 1) {
+            name.innerText = "Niveau 1: AI-bewust";
+            desc.innerText = "Je functie vraagt om basisbegrip en ondersteunend gebruik van AI voor persoonlijke productiviteit.";
+            custom.innerHTML = "Weet de basis, relax. Jouw tijd komt nog wel! 😊";
+        } else if (level === 2) {
+            name.innerText = "Niveau 2: AI-bekwaam";
+            desc.innerText = "Je bent een kritische gebruiker die techniek inhoudelijk valideert in de dagelijkse praktijk.";
+            custom.innerHTML = "Je bent de kritische blik die kwaliteit bewaakt. Onmisbaar! 👁️<br><br>Maak de behoeftes kenbaar. <a href='https://bibliotheeknlda.libguides.com/AI-tools_buiten_IV' target='_blank'>Start met de libguide</a> en AI-workshops voor doelgerichte AI-tools.";
+        } else if (level === 3) {
+            name.innerText = "Niveau 3: AI-geavanceerd";
+            desc.innerText = "Je adviseert strategisch, bewaakt de governance en slaat de brug tussen techniek en beleid.";
+            custom.innerHTML = "De strategische schakel tussen denken en doen. Respect! 🎁<br><br>Deel je verhalen, blijf innoveren!";
+        } else if (level === 4) {
+            name.innerText = "Niveau 4: AI-expert";
+            desc.innerText = "Je bent de technische maker die de systemen bouwt, codeert en technisch beheert.";
+            custom.innerHTML = "Zonder jou geen data en AI-tools. Dank voor je bijdrage! 🛠️";
+        }
+        
+        const jaList = document.getElementById('ja-list');
+        jaList.innerHTML = '';
+        if (jaAnswers.length === 0) {
+            jaList.innerHTML = '<li><em>Je hebt op geen enkele vraag "Ja" geantwoord.</em></li>';
+        } else {
+            jaAnswers.forEach(answer => {
+                const li = document.createElement('li');
+                li.innerText = answer;
+                jaList.appendChild(li);
+            });
+        }
+    }
+
+    function resetQuiz() {
+        currentStep = 0;
+        answerHistory = [];
+        jaAnswers = [];
+        document.getElementById('quiz').classList.remove('hidden');
+        document.getElementById('result-area').classList.add('hidden');
+        document.getElementById('intro-screen').classList.remove('hidden');
+        document.getElementById('app').classList.add('hidden');
+    }
+
+    if (document.getElementById('app').classList.contains('hidden') === false) {
+        updateView();
+    }
+</script>
+</body>
+</html>
